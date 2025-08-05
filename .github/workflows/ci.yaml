@@ -32,6 +32,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.RENOVATE_GITHUB_TOKEN }}
           DISABLE: COPYPASTE,SPELL,SPELL_CSPELL
           DISABLE_ERRORS_LINTERS: REPOSITORY_CHECKOV,REPOSITORY_DEVSKIM
-          EXCLUDED_DIRECTORIES: flux-system,twistlock,workflows
+          EXCLUDED_DIRECTORIES: flux-systems,twistlock,workflows
           REPOSITORY_KICS_ARGUMENTS: --fail-on critical,high,medium
 
