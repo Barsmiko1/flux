@@ -1,0 +1,29 @@
+---
+name: CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: hce-gh-ubuntu-22.04
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: MegaLinter
+        id: ml
+        uses: oxsecurity/megalinter@v8
+        env:
+          VALIDATE_ALL_CODEBASE: true
+          GITHUB_TOKEN: ${{ secrets.RENOVATE_GITHUB_TOKEN }}
+          DISABLE: COPYPASTE,SPELL,SPELL_CSPELL
+          DISABLE_ERRORS_LINTERS: REPOSITORY_CHECKOV,REPOSITORY_DEVSKIM
+          EXCLUDED_DIRECTORIES: flux-system,twistlock,workflows
+          REPOSITORY_KICS_ARGUMENTS: --fail-on critical,high,medium
+
