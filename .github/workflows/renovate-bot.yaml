@@ -1,0 +1,49 @@
+name: Renovate Bot
+
+# Workflow triggers
+on:
+  # Manual trigger via GitHub UI
+  workflow_dispatch:
+
+  # Scheduled trigger (every Sunday at 2am UTC)
+  schedule:
+    - cron: '0 2 * * 0'
+
+jobs:
+  renovate:
+    name: Run Renovate on master branch
+    runs-on: ubuntu-latest
+
+    # Ensure it runs only on master branch context
+    if: github.ref == 'refs/heads/master'
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Renovate CLI
+        run: npm install -g renovate
+
+      - name: Install Flux CLI
+        run: |
+          curl -s https://fluxcd.io/install.sh | sudo bash
+          flux --version
+
+      - name: Generate Flux Component Manifests (Split Files)
+        run: |
+          mkdir -p k8s/flux-systems
+          flux install --export --components=source-controller > k8s/flux-systems/source-controller.yaml
+          flux install --export --components=kustomize-controller > k8s/flux-systems/kustomize-controller.yaml
+          flux install --export --components=helm-controller > k8s/flux-systems/helm-controller.yaml
+          flux install --export --components=notification-controller > k8s/flux-systems/notification-controller.yaml
+
+      - name: Run Renovate CLI
+        env:
+          RENOVATE_TOKEN: ${{ secrets.RENOVATE_GITHUB_TOKEN }}
+          LOG_LEVEL: debug
+        run: renovate ${{ github.repository }}
