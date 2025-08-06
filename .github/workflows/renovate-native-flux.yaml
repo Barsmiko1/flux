@@ -1,5 +1,5 @@
 # Renovate Bot Workflow
-# This workflow automates dependency updates using Renovate Bot for Flux GitOps configurations
+# This workflow automates dependency updates using Renovate Bot for Flux configurations
 # 
 # References:
 # - Renovate Bot: https://docs.renovatebot.com/
@@ -17,7 +17,7 @@ on:
   # Reference: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#workflow_dispatch
   workflow_dispatch:
   
-  # Scheduled execution every Sunday at 2AM UTC
+  # Scheduled execution every Sunday at 2AM
   # Reference: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule
   schedule:
     # Cron format: minute hour day-of-month month day-of-week (0=Sunday, 6=Saturday)
@@ -28,10 +28,10 @@ jobs:
   # Generate Flux system manifests using official GitHub Action
   # This ensures we have the latest complete Flux system manifests before running Renovate
   generate-flux-manifests:
-    name: Generate Flux System Manifests
+    name: Generate Flux configurations
     runs-on: ubuntu-latest
     
-    # Only run on main branch to prevent unnecessary executions on feature branches
+    # Only run on master branch to prevent unnecessary executions on feature branches
     # Reference: https://docs.github.com/en/actions/learn-github-actions/contexts#github-context
     if: github.ref == 'refs/heads/master'
     
