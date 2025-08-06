@@ -1,11 +1,4 @@
-# Renovate Bot Workflow
-# This workflow automates dependency updates using Renovate Bot for Flux GitOps configurations
-# 
-# References:
-# - Renovate Bot: https://docs.renovatebot.com/
-# - GitHub Actions Workflow Syntax: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
-# - Renovate GitHub Action: https://github.com/renovatebot/github-action
-# - Flux CLI: https://fluxcd.io/flux/cmd/
+
 
 name: Renovate-Bot
 
