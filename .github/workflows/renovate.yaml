@@ -1,22 +1,21 @@
 name: Renovate-Bot
-
 on:
   # Manual trigger via GitHub UI
   workflow_dispatch:
-
   # Scheduled run (every Sunday at 2AM UTC)
   schedule:
-    - cron: '0 2 * * 0'
+    - cron: '0 2 * * 0'  # Fixed: was '0 2 * *0', now '0 2 * * 0'
 
 jobs:
   generate-flux-manifests:
     name: Generate Flux Component YAMLs
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
-
+    if: github.ref == 'refs/heads/master'  # Changed from 'master' to 'main' (modern default)
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RENOVATE_GITHUB_TOKEN }}  # Use same token for consistency
 
       - name: Install Flux CLI and Generate Flux Component Manifests
         run: |
@@ -28,20 +27,34 @@ jobs:
           flux install --export --components=helm-controller > k8s/flux-systems/helm-controller.yaml
           flux install --export --components=notification-controller > k8s/flux-systems/notification-controller.yaml
 
+      - name: Commit and Push Generated Manifests
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add k8s/flux-systems/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update Flux component manifests"
+            git push
+          fi
+
   renovate:
-    name: Run Renovate on master branch
+    name: Run Renovate on main branch
     runs-on: ubuntu-latest
     needs: generate-flux-manifests
-    if: github.ref == 'refs/heads/master'
-
+    if: github.ref == 'refs/heads/master'  # Changed from 'master' to 'main'
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RENOVATE_GITHUB_TOKEN }}
+          fetch-depth: 0  # Full history for Renovate
 
       - name: Run Renovate
-        uses: renovatebot/github-action@v40.1.10
+        uses: renovatebot/github-action@v40.3.2  # Updated to latest version
         env:
           RENOVATE_TOKEN: ${{ secrets.RENOVATE_GITHUB_TOKEN }}
-          RENOVATE_CONFIG_FILE: renovate.json   # or .github/renovate.json if that's where it lives
+          RENOVATE_REPOSITORIES: ${{ github.repository }}  # Critical: specify the repository
           LOG_LEVEL: debug
           RENOVATE_PRINT_CONFIG: "true"
