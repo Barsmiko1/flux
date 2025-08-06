@@ -1,5 +1,5 @@
-# Renovate Bot Workflow
-# This workflow automates dependency updates using Renovate Bot for Flux GitOps configurations
+# Renovate Bot GitHub Action Workflow
+# This workflow automates dependency updates using Renovate Bot for Flux configurations
 # 
 # References:
 # - Renovate Bot: https://docs.renovatebot.com/
@@ -8,24 +8,33 @@
 # - Flux CLI: https://fluxcd.io/flux/cmd/
 
 name: Renovate-Bot
+# Workflow Triggers
+# Reference: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows
 on:
   # Manual trigger via GitHub UI
+  # Reference: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#workflow_dispatch
   workflow_dispatch:
   # Scheduled run (every Sunday at 2AM UTC)
+  # Reference: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule
   schedule:
     - cron: '0 2 * * 0' 
 
 jobs:
   generate-flux-manifests:
+  # This job ensures we have the latest Flux system manifests before running Renovate
     name: Generate Flux Component YAMLs
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'  # Changed from 'master' to 'main' (modern default)
+
+    # Only run on master branch to prevent unnecessary executions on feature branches
+    # Reference: https://docs.github.com/en/actions/learn-github-actions/contexts#github-context
+    if: github.ref == 'refs/heads/master' 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.RENOVATE_GITHUB_TOKEN }}  # Use same token for consistency
-
+          token: ${{ secrets.RENOVATE_GITHUB_TOKEN }} 
+      #Install Flux CLI and generate component manifests
+      # Reference: https://fluxcd.io/flux/installation/
       - name: Install Flux CLI and Generate Flux Component Manifests
         run: |
           curl -s https://fluxcd.io/install.sh | sudo bash
@@ -34,17 +43,20 @@ jobs:
   renovate:
     name: Run Renovate on main branch
     runs-on: ubuntu-latest
+    # Ensure Flux manifests are generated before running Renovate
+    # Reference: https://docs.github.com/en/actions/using-jobs/using-jobs-in-a-workflow#defining-prerequisite-jobs
     needs: generate-flux-manifests
-    if: github.ref == 'refs/heads/master'  # Changed from 'master' to 'main'
+    if: github.ref == 'refs/heads/master'
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.RENOVATE_GITHUB_TOKEN }}
-          fetch-depth: 0  # Full history for Renovate
-
+          # Full history for Renovate
+          fetch-depth: 0
+          
       - name: Run Renovate
-        uses: renovatebot/github-action@v40.3.2  # Updated to latest version
+        uses: renovatebot/github-action@v40.3.2
         env:
           RENOVATE_TOKEN: ${{ secrets.RENOVATE_GITHUB_TOKEN }}
           RENOVATE_REPOSITORIES: ${{ github.repository }}  # Critical: specify the repository
