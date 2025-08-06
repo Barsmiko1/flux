@@ -28,14 +28,6 @@ jobs:
           flux install --export --components=helm-controller > k8s/flux-systems/helm-controller.yaml
           flux install --export --components=notification-controller > k8s/flux-systems/notification-controller.yaml
 
-      - name: Commit updated manifests
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add k8s/flux-systems
-          git diff --staged --quiet || git commit -m "chore: update Flux manifests before Renovate"
-          git push
-
   renovate:
     name: Run Renovate on master branch
     runs-on: ubuntu-latest
@@ -46,12 +38,10 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Run Renovate CLI
+      - name: Run Renovate
         uses: renovatebot/github-action@v40.1.10
-        with:
-          repo: ${{ github.repository }}
-          configFile: renovate.json  # Update this path if it's inside `.github/`
         env:
           RENOVATE_TOKEN: ${{ secrets.RENOVATE_GITHUB_TOKEN }}
+          RENOVATE_CONFIG_FILE: renovate.json   # or .github/renovate.json if that's where it lives
           LOG_LEVEL: debug
           RENOVATE_PRINT_CONFIG: "true"
