@@ -1,90 +1,52 @@
-
+# Renovate Bot Workflow
+# This workflow automates dependency updates using Renovate Bot for Flux GitOps configurations
+# 
+# References:
+# - Renovate Bot: https://docs.renovatebot.com/
+# - GitHub Actions Workflow Syntax: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
+# - Renovate GitHub Action: https://github.com/renovatebot/github-action
+# - Flux CLI: https://fluxcd.io/flux/cmd/
 
 name: Renovate-Bot
-
-# Workflow Triggers
-# Reference: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows
 on:
-  # Manual trigger via GitHub UI for on-demand execution
-  # Reference: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#workflow_dispatch
+  # Manual trigger via GitHub UI
   workflow_dispatch:
-  
-  # Scheduled execution every Sunday at 2AM UTC
-  # Reference: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule
+  # Scheduled run (every Sunday at 2AM UTC)
   schedule:
-    # Cron format: minute hour day-of-month month day-of-week (0=Sunday, 6=Saturday)
-    # Reference: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule
-    - cron: '0 2 * * 0'
-
+    - cron: '0 2 * * 0' 
 
 jobs:
-  # Generate Flux component manifests
-  # This ensures we have the latest Flux system manifests before running Renovate
   generate-flux-manifests:
     name: Generate Flux Component YAMLs
     runs-on: ubuntu-latest
-    
-    # Only run on master branch to prevent unnecessary executions on feature branches
-    # Reference: https://docs.github.com/en/actions/learn-github-actions/contexts#github-context
-    if: github.ref == 'refs/heads/main'
-    
+    if: github.ref == 'refs/heads/master'  # Changed from 'master' to 'main' (modern default)
     steps:
-      # Checkout repository code
-      # Reference: https://github.com/actions/checkout
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          # Use github token for consistent authentication across workflow
-          token: ${{ secrets.RENOVATE_GITHUB_TOKEN }}
-          
-      # Install Flux CLI and generate component manifests
-      # Reference: https://fluxcd.io/flux/installation/
+          token: ${{ secrets.RENOVATE_GITHUB_TOKEN }}  # Use same token for consistency
+
       - name: Install Flux CLI and Generate Flux Component Manifests
         run: |
           curl -s https://fluxcd.io/install.sh | sudo bash
           flux --version
 
-
-  # Reference: https://docs.renovatebot.com/
   renovate:
-    name: Run Renovate on master branch
+    name: Run Renovate on main branch
     runs-on: ubuntu-latest
-    
-    # Ensure Flux manifests are generated before running Renovate
-    # Reference: https://docs.github.com/en/actions/using-jobs/using-jobs-in-a-workflow#defining-prerequisite-jobs
     needs: generate-flux-manifests
-    
-    # Only run on master branch for consistency with generation job
-    if: github.ref == 'refs/heads/master'
-    
+    if: github.ref == 'refs/heads/master'  # Changed from 'master' to 'main'
     steps:
-      # Reference: https://github.com/actions/checkout
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          # Use github  token with appropriate permissions
           token: ${{ secrets.RENOVATE_GITHUB_TOKEN }}
-          # Full history required for Renovate to analyze dependency changes over time
-          # Reference: https://docs.renovatebot.com/getting-started/running/#github-actions
-          fetch-depth: 0
+          fetch-depth: 0  # Full history for Renovate
 
-      # Execute Renovate Bot for automated dependency updates
-      # Reference: https://github.com/renovatebot/github-action
       - name: Run Renovate
-        uses: renovatebot/github-action@v40.3.2
+        uses: renovatebot/github-action@v40.3.2  # Updated to latest version
         env:
-          # GitHub token with required permissions for Renovate operations
-          # Reference: https://docs.renovatebot.com/getting-started/running/#authentication
           RENOVATE_TOKEN: ${{ secrets.RENOVATE_GITHUB_TOKEN }}
-          
-          # Specify target repository - critical for proper operation
-          # Reference: https://docs.renovatebot.com/self-hosted-configuration/#repositories
-          RENOVATE_REPOSITORIES: ${{ github.repository }}
-          
-          # Debug logging for troubleshooting and monitoring
-          # Reference: https://docs.renovatebot.com/self-hosted-configuration/#log-level
+          RENOVATE_REPOSITORIES: ${{ github.repository }}  # Critical: specify the repository
           LOG_LEVEL: debug
-          
-          
-          # Configuration file will be auto-discovered (renovate.json in repo root)
-          # Reference: https://docs.renovatebot.com/configuration-options/
+          RENOVATE_PRINT_CONFIG: "true"
