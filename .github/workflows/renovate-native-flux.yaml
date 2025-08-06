@@ -8,7 +8,7 @@
 # - Flux CLI: https://fluxcd.io/flux/cmd/
 # - Flux GitHub Action: https://fluxcd.io/flux/flux-gh-action/
 
-name: Renovate-Bot
+name: Renovate-Bot-native-flux
 
 # Workflow Triggers
 # Reference: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows
