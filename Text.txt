@@ -1,0 +1,38 @@
+After the review of how we would approach this ticket. Its news carry for us to split the ticket into different phase and track the progress.
+
+(Ticket)Phase 1: Current State Assessment and EKS Cluster Evaluation for deployed Sonarqube on EKS.
+
+Description:Assess current SonarQube EC2 instance and evaluate existing EKS cluster capabilities, also check if it’s already deployed in Eks also access how it’s been deployed and what repository is used.
+
+Document current SonarQube version, plugins, and configuration
+
+Assess current database type, size, and connection details
+
+Evaluate existing EKS cluster resources and capacity
+
+Review current Flux setup and GitOps repository structure
+
+Document current performance baseline (total users by department or team)
+
+Identify resource requirements for SonarQube on EKS even if not already deployed 
+
+Assess network connectivity between EKS and current database and other team environment.
+
+Ticket (Phase 2):(only required if flux was used to manage Sonarqube)- Analyze existing Flux repository structure and determine SonarQube integration approach
+Audit current SonarQube installation
+- Review EKS cluster node capacity and availability
+- Analyze Flux configuration and repository structure
+- Test network connectivity from EKS to current database
+
+
+TO DO
+
+Current Flux repository structure documented
+
+Identify where SonarQube manifests should be placed (if not in existence)
+
+Review existing Helm chart patterns in repository
+
+Understand current deployment and environment approach 
+
+Identify required permissions and access patterns
