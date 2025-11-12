@@ -1,0 +1,248 @@
+sequenceDiagram
+    participant Dev as Developer
+    participant Git as Git Repository
+    participant Pipeline as CI/CD Pipeline
+    participant ACR as Azure Container Registry
+    participant TF_UKS as Terraform UK South
+    participant TF_EUS2 as Terraform East US 2
+    participant ContApp_UKS as Container Apps UKS
+    participant ContApp_EUS2 as Container Apps EUS2
+    participant TestRunner as AQA Test Runner
+    participant TrafficMgr as Azure Traffic Manager
+    participant Monitor as Monitoring
+
+    Note over Dev,Monitor: STEP 1: TRIGGER AND VALIDATION
+    
+    Dev->>Git: git push origin main
+    activate Git
+    Git->>Pipeline: Webhook triggers pipeline
+    activate Pipeline
+    Pipeline->>Pipeline: Validate branch rules
+    Pipeline->>Pipeline: Check CI status
+    Pipeline->>Pipeline: Verify approvals
+    Git-->>Pipeline: Trigger validated
+    deactivate Git
+
+    Note over Dev,Monitor: STEP 2: BUILD AND TEST
+    
+    Pipeline->>Pipeline: Checkout code (commit abc123)
+    Pipeline->>Pipeline: Set variables (COMMIT_SHA IMAGE_TAG)
+    Pipeline->>Pipeline: Run unit tests
+    Pipeline->>Pipeline: Lint Terraform code
+    Pipeline-->>Pipeline: Build validation passed
+
+    Note over Dev,Monitor: STEP 3: DOCKER BUILD AND SCAN
+    
+    Pipeline->>Pipeline: Build Docker image
+    Pipeline->>Pipeline: Security scan (Trivy/Snyk)
+    Pipeline->>ACR: Push myacr.azurecr.io/app:abc123
+    activate ACR
+    ACR-->>Pipeline: Image pushed successfully
+    deactivate ACR
+
+    Note over Dev,Monitor: STEP 4: UK SOUTH - TERRAFORM INIT
+    
+    Pipeline->>TF_UKS: cd environments/uks
+    activate TF_UKS
+    Pipeline->>TF_UKS: terraform init (Backend uks-prod.tfstate)
+    TF_UKS->>TF_UKS: Initialize Azure backend
+    TF_UKS-->>Pipeline: Backend initialized
+
+    Note over Dev,Monitor: STEP 5: UK SOUTH - TERRAFORM PLAN
+    
+    Pipeline->>TF_UKS: terraform plan with terraform.uks.tfvars
+    TF_UKS->>TF_UKS: Load tfvars (region=uksouth)
+    TF_UKS-->>Pipeline: Plan generated
+
+    Note over Dev,Monitor: STEP 6: UK SOUTH - TERRAFORM APPLY
+    
+    Pipeline->>TF_UKS: terraform apply
+    TF_UKS->>ContApp_UKS: Create/Update Container App Environment
+    activate ContApp_UKS
+    TF_UKS->>ContApp_UKS: Configure networking (VNet)
+    TF_UKS->>ContApp_UKS: Set revision mode multiple
+    TF_UKS->>ContApp_UKS: Configure monitoring
+    TF_UKS->>ContApp_UKS: Set replica configuration
+    ContApp_UKS-->>TF_UKS: Resources created/updated
+    TF_UKS-->>Pipeline: Apply complete with outputs
+
+    Note over Dev,Monitor: STEP 7: UK SOUTH - DEPLOY BLUE
+    
+    Pipeline->>ContApp_UKS: Check existing revisions
+    ContApp_UKS-->>Pipeline: Current uks-blue-v1-0-0 (100%)
+    
+    Pipeline->>ContApp_UKS: Deploy blue revision (Image abc123)
+    ContApp_UKS->>ACR: Pull image
+    ACR-->>ContApp_UKS: Image pulled
+    ContApp_UKS->>ContApp_UKS: Create blue revision
+    ContApp_UKS-->>Pipeline: Blue deployed traffic 100%
+    
+    Pipeline->>ContApp_UKS: Health check blue
+    ContApp_UKS-->>Pipeline: Blue healthy
+
+    Note over Dev,Monitor: STEP 8: UK SOUTH - DEPLOY GREEN
+    
+    Pipeline->>ContApp_UKS: Deploy green revision (Traffic 0%)
+    ContApp_UKS->>ContApp_UKS: Create green revision
+    ContApp_UKS->>ContApp_UKS: Add green label
+    ContApp_UKS-->>Pipeline: Green created
+
+    Note over Dev,Monitor: STEP 9: UK SOUTH - AQA TESTING
+    
+    Pipeline->>TestRunner: Trigger AQA tests (UKS Green)
+    activate TestRunner
+    TestRunner->>ContApp_UKS: Run 9-layer test suite
+    ContApp_UKS-->>TestRunner: All tests passed
+    TestRunner-->>Pipeline: UKS AQA validation complete
+    deactivate TestRunner
+
+    Note over Dev,Monitor: STEP 10: UK SOUTH - TRAFFIC SWITCH
+    
+    Pipeline->>ContApp_UKS: Canary 10% (Blue 90% Green 10%)
+    ContApp_UKS-->>Pipeline: Traffic updated
+    Pipeline->>Monitor: Monitor UKS (5 min)
+    activate Monitor
+    Monitor-->>Pipeline: Metrics healthy
+    
+    Pipeline->>ContApp_UKS: Canary 50% (Blue 50% Green 50%)
+    ContApp_UKS-->>Pipeline: Traffic updated
+    Pipeline->>Monitor: Monitor UKS (10 min)
+    Monitor-->>Pipeline: Metrics healthy
+    
+    Pipeline->>ContApp_UKS: Full switch (Blue 0% Green 100%)
+    ContApp_UKS-->>Pipeline: Traffic updated
+    Pipeline->>Monitor: Verify production health
+    Monitor-->>Pipeline: UKS production healthy
+    deactivate Monitor
+
+    Note over Dev,Monitor: STEP 11: UK SOUTH - FINALIZATION
+    
+    Pipeline->>ContApp_UKS: Swap labels (Green becomes Blue)
+    ContApp_UKS-->>Pipeline: Labels updated
+    Pipeline->>ContApp_UKS: Cleanup old revisions
+    ContApp_UKS-->>Pipeline: Cleanup complete
+    deactivate TF_UKS
+    
+    Note over Pipeline,ContApp_UKS: UK South Deployment Complete
+
+    Note over Dev,Monitor: STEP 12: EAST US 2 - TERRAFORM INIT
+    
+    Pipeline->>TF_EUS2: cd environments/eus2
+    activate TF_EUS2
+    Pipeline->>TF_EUS2: terraform init (Backend eus2-prod.tfstate)
+    TF_EUS2->>TF_EUS2: Initialize Azure backend
+    TF_EUS2-->>Pipeline: Backend initialized
+
+    Note over Dev,Monitor: STEP 13: EAST US 2 - TERRAFORM PLAN
+    
+    Pipeline->>TF_EUS2: terraform plan with terraform.eus2.tfvars
+    TF_EUS2->>TF_EUS2: Load tfvars (region=eastus2)
+    TF_EUS2-->>Pipeline: Plan generated
+
+    Note over Dev,Monitor: STEP 14: EAST US 2 - TERRAFORM APPLY
+    
+    Pipeline->>TF_EUS2: terraform apply
+    TF_EUS2->>ContApp_EUS2: Create/Update Container App Environment
+    activate ContApp_EUS2
+    TF_EUS2->>ContApp_EUS2: Configure networking (VNet)
+    TF_EUS2->>ContApp_EUS2: Set revision mode multiple
+    TF_EUS2->>ContApp_EUS2: Configure monitoring
+    TF_EUS2->>ContApp_EUS2: Set replica configuration
+    ContApp_EUS2-->>TF_EUS2: Resources created/updated
+    TF_EUS2-->>Pipeline: Apply complete with outputs
+
+    Note over Dev,Monitor: STEP 15: EAST US 2 - DEPLOY BLUE AND GREEN
+    
+    Pipeline->>ContApp_EUS2: Deploy blue revision (Image abc123)
+    ContApp_EUS2->>ACR: Pull image
+    ACR-->>ContApp_EUS2: Image pulled
+    ContApp_EUS2-->>Pipeline: Blue deployed traffic 100%
+    
+    Pipeline->>ContApp_EUS2: Health check blue
+    ContApp_EUS2-->>Pipeline: Blue healthy
+    
+    Pipeline->>ContApp_EUS2: Deploy green revision (Traffic 0%)
+    ContApp_EUS2->>ContApp_EUS2: Create green revision
+    ContApp_EUS2->>ContApp_EUS2: Add green label
+    ContApp_EUS2-->>Pipeline: Green created
+
+    Note over Dev,Monitor: STEP 16: EAST US 2 - AQA TESTING
+    
+    Pipeline->>TestRunner: Trigger AQA tests (EUS2 Green)
+    activate TestRunner
+    TestRunner->>ContApp_EUS2: Run 9-layer test suite
+    ContApp_EUS2-->>TestRunner: All tests passed
+    TestRunner-->>Pipeline: EUS2 AQA validation complete
+    deactivate TestRunner
+
+    Note over Dev,Monitor: STEP 17: EAST US 2 - TRAFFIC SWITCH
+    
+    Pipeline->>ContApp_EUS2: Canary 10% (Blue 90% Green 10%)
+    ContApp_EUS2-->>Pipeline: Traffic updated
+    Pipeline->>Monitor: Monitor EUS2 (5 min)
+    activate Monitor
+    Monitor-->>Pipeline: Metrics healthy
+    
+    Pipeline->>ContApp_EUS2: Canary 50% (Blue 50% Green 50%)
+    ContApp_EUS2-->>Pipeline: Traffic updated
+    Pipeline->>Monitor: Monitor EUS2 (10 min)
+    Monitor-->>Pipeline: Metrics healthy
+    
+    Pipeline->>ContApp_EUS2: Full switch (Blue 0% Green 100%)
+    ContApp_EUS2-->>Pipeline: Traffic updated
+    Pipeline->>Monitor: Verify production health
+    Monitor-->>Pipeline: EUS2 production healthy
+    deactivate Monitor
+
+    Note over Dev,Monitor: STEP 18: EAST US 2 - FINALIZATION
+    
+    Pipeline->>ContApp_EUS2: Swap labels (Green becomes Blue)
+    ContApp_EUS2-->>Pipeline: Labels updated
+    Pipeline->>ContApp_EUS2: Cleanup old revisions
+    ContApp_EUS2-->>Pipeline: Cleanup complete
+    deactivate TF_EUS2
+    
+    Note over Pipeline,ContApp_EUS2: East US 2 Deployment Complete
+
+    Note over Dev,Monitor: STEP 19: CROSS-REGION VALIDATION
+    
+    Pipeline->>ContApp_UKS: Verify UKS endpoint health
+    ContApp_UKS-->>Pipeline: UKS healthy
+    
+    Pipeline->>ContApp_EUS2: Verify EUS2 endpoint health
+    ContApp_EUS2-->>Pipeline: EUS2 healthy
+    
+    Pipeline->>Pipeline: Test data consistency
+    Pipeline-->>Pipeline: Cross-region validation passed
+
+    Note over Dev,Monitor: STEP 20: GLOBAL CONFIGURATION
+    
+    Pipeline->>TrafficMgr: Update Traffic Manager/Front Door
+    activate TrafficMgr
+    Pipeline->>TrafficMgr: Configure health probes (UKS and EUS2)
+    Pipeline->>TrafficMgr: Set routing (Geographic/Performance)
+    TrafficMgr-->>Pipeline: Global routing updated
+    
+    Pipeline->>TrafficMgr: Verify global endpoint
+    TrafficMgr-->>Pipeline: Global health check passed
+    deactivate TrafficMgr
+
+    Note over Dev,Monitor: STEP 21: REPORTING AND MONITORING
+    
+    Pipeline->>Pipeline: Generate deployment report
+    Pipeline->>Pipeline: Store artifacts (states, test reports, logs)
+    
+    Pipeline->>Monitor: Enable enhanced monitoring (24h)
+    activate Monitor
+    Monitor->>ContApp_UKS: Track metrics
+    Monitor->>ContApp_EUS2: Track metrics
+    Monitor-->>Pipeline: Monitoring active
+    
+    Pipeline->>Dev: Send success notification
+    
+    deactivate Pipeline
+    deactivate ContApp_UKS
+    deactivate ContApp_EUS2
+    deactivate Monitor
+    
+    Note over Dev,Monitor: Multi-Region Deployment Complete
